@@ -23,4 +23,6 @@ from .dcmtrans import reconstruct
 from .dcmtrans import image_convert
 from .ct_window import PRESET_WINDOW as CT_PRESET_WINDOW
 
+from .dcm_imread import *
+
 from .formats import get_nbits_from_colormap
