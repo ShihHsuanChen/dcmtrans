@@ -1,0 +1,4 @@
+SimpleITK >= 1.2.4
+pydicom == 1.2.2
+Pillow == 6.0.0
+numpy
