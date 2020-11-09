@@ -105,6 +105,8 @@ def voi_lut_trans(
         ):
     VOILUTSequence = getattr(dicom_file, 'VOILUTSequence', [{}])[0]
     lut_descriptor = VOILUTSequence.get('LUTDescriptor')
+    if lut_descriptor is None:
+        lut_descriptor = VOILUTSequence.get('LUTDescriptor')
 
     if isinstance(lut_descriptor, bytes):
         PixelRepresentation = int(dicom_file.get('PixelRepresentation'))

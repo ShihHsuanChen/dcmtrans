@@ -27,7 +27,7 @@ def modality_linear_trans(dicom_file: pydicom.FileDataset, image_data: numpy.nda
     intercept = getattr(dicom_file, 'RescaleIntercept', None)
     slope = getattr(dicom_file, 'RescaleSlope', None)
     unit = getattr(dicom_file, 'RescaleType', None)
-    if unit is None and getattr(dicom_file, 'Modality', None) == 'CT':
+    if unit is None and getattr(dicom_file, 'Modality', '').strip() == 'CT':
         unit = 'HU'
 
     return linear_trans(image_data, intercept, slope), unit
@@ -35,9 +35,10 @@ def modality_linear_trans(dicom_file: pydicom.FileDataset, image_data: numpy.nda
 
 def modality_lut_trans(dicom_file: pydicom.FileDataset, image_data: numpy.ndarray):
     ModalityLUTSequence = dicom_file.get('ModalityLUTSequence')[0]
-    # Debug
-    ModalityLUTSequence.get('LUTDescriptor') # if don't do this line, line 40 will be None
     lut_descriptor = ModalityLUTSequence.get('LUTDescriptor')
+    if lut_descriptor is None: # debug
+        lut_descriptor = ModalityLUTSequence.get('LUTDescriptor') # if don't do this line, line 40 will be None
+
     if isinstance(lut_descriptor, bytes):
         PixelRepresentation = int(dicom_file.get('PixelRepresentation'))
         dtype = numpy.ushort if PixelRepresentation == 0 else numpy.short
