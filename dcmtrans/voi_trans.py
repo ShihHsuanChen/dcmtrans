@@ -30,7 +30,7 @@ def voi_classifier(dicom_file: pydicom.FileDataset):
         else:
             return VOILUTFunction
     else:
-        return None
+        return 'LINEAR'
 
 
 def _get_window(dicom_file: pydicom.FileDataset, window='default', unit=None):
@@ -38,18 +38,23 @@ def _get_window(dicom_file: pydicom.FileDataset, window='default', unit=None):
         wc = window.get('window_center')
         ww = window.get('window_width')
     elif window == 'default' or unit is None:
-        wc = dicom_file.get('WindowCenter')
-        ww = dicom_file.get('WindowWidth')
-        if isinstance(wc, pydicom.multival.MultiValue):
-            wc = wc[0]
-        if isinstance(ww, pydicom.multival.MultiValue):
-            ww = ww[0]
-    elif isinstance(window, str) and unit == 'HU':
+        try:
+            wc = dicom_file.WindowCenter
+            ww = dicom_file.WindowWidth
+            if isinstance(wc, pydicom.multival.MultiValue):
+                wc = wc[0]
+            if isinstance(ww, pydicom.multival.MultiValue):
+                ww = ww[0]
+        except:
+            BitsStored = dicom_file.get('BitsStored')
+            wc = 2 ** (BitsStored - 1)
+            ww = 2 ** BitsStored
+    elif isinstance(window, str) and unit in ['HU', 'Hounsfield Unit']:
         wc, ww = get_ct_window(window)
     else:
         try:
-            wc = dicom_file.get('WindowCenter')
-            ww = dicom_file.get('WindowWidth')
+            wc = dicom_file.WindowCenter
+            ww = dicom_file.WindowWidth
             if isinstance(wc, pydicom.multival.MultiValue):
                 wc = wc[0]
             if isinstance(ww, pydicom.multival.MultiValue):
