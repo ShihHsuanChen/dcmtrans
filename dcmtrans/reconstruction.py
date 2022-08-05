@@ -1,3 +1,5 @@
+import warnings
+
 def classify(dcmObj):
     return getattr(dcmObj, 'Modality', None)
 
@@ -166,6 +168,9 @@ def _recon_ct(index_map, index_data_dict, index_list):
         pos0 = pos_list[i-1]
         dp = [pos1[j] - pos0[j] for j in range(3)]
         spacing = sum([x**2 for x in dp])**0.5
+        if abs(spacing) < 1e-4:
+            warnings.warn(f'spacing between {ind0} and {ind1} is 0')
+            continue
         tmp_dot = sum([
             dp[0] *iop[1]*iop[3+2],
             dp[1] *iop[2]*iop[3+0],
@@ -191,9 +196,9 @@ def _recon_ct(index_map, index_data_dict, index_list):
         chirality = chirality_list[0]
 
     # 4. calculate spacing
-    if len(set([round(x*1E3) for x in spacing_list])) != 1:
-        raise AssertionError('Slice Spacing mismatch')
-    spacing = abs(spacing_list[0])
+    # if len(set([round(x*1E3) for x in spacing_list])) != 1:
+        # raise AssertionError('Slice Spacing mismatch')
+    # spacing = abs(spacing_list[0])
     # 5. retag series with ImageOrientationPatient: Axial-like, Coronal-like, Sagittal-like, Other
     iop = iop_list[0]
     k_like = {'axial': [0,0,1], 'coronal': [0,1,0], 'sagittal': [1,0,0]}
@@ -208,7 +213,8 @@ def _recon_ct(index_map, index_data_dict, index_list):
             'index_list': index_list,
             'index_map': index_map,
             'chirality': chirality,
-            'spacing_slice': float('%.3f' % spacing),
+            # 'spacing_slice': float('%.3f' % spacing),
+            'spacing_slice': set([round(x*1E3) for x in spacing_list]),
             'series_like': series_like,
             'image_orientation_patient': [float('%.4f'%x) for x in iop],
             }
