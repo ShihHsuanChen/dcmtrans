@@ -19,6 +19,7 @@ def window_linear_trans(
         window_width: float,
         depth: int = 256,
         ) -> np.ndarray:
+    image = image.copy()
     a = image <= (window_center - 0.5 - (window_width - 1) / 2)
     b = image > window_center - 0.5 + (window_width - 1) / 2
     image[a] = 0
@@ -34,6 +35,7 @@ def window_linear_exact_trans(
         window_width: float,
         depth: int = 256,
         ) -> np.ndarray:
+    image = image.copy()
     a = image <= (window_center - window_width / 2)
     b = image > (window_center + window_width / 2)
     image[a] = 0
