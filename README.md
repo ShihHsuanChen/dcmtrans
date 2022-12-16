@@ -12,7 +12,7 @@ $ pip install git+http://remote/git/repo/dcmtrans.git@<tag>
 For example:
 
 ```sh
-$ pip install git+http://https://github.com/ShihHsuanChen/dcmtrans.git@v0.1.6
+$ pip install git+https://github.com/ShihHsuanChen/dcmtrans.git@v0.1.6
 ```
 
 ### Via git-submodule
