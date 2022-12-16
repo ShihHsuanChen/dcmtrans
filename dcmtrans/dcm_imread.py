@@ -9,18 +9,21 @@ from typing import Union
 __all__ = ['read_pixel', 'read_pixel_bytes', 'read_pixel_pydicom', 'read_pixel_sitk']
 
 
+logger = logging.getLogger(__name__)
+
+
 def read_pixel(filename: str, return_on_fail=None):
     for method in [read_pixel_pydicom, read_pixel_sitk, read_pixel_bytes]:
         try:
             img_arr = method(filename)
             method_name = method.__qualname__
         except Exception as e:
-            logging.warning(e)
+            logger.warning(e)
         else:
             break
     else:
         return return_on_fail
-    logging.info(f'Read dicom image by using {method_name}')
+    logger.debug(f'Read dicom image by using {method_name}')
     return img_arr
 
 
