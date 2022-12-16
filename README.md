@@ -3,9 +3,16 @@
 ## Install
 ### Via pip
 
-Not Implemeted yet
+Install from git repository
+
 ```sh
-$ pip install git+http://remote/git/repo/dcmtrans.git
+$ pip install git+http://remote/git/repo/dcmtrans.git@<tag>
+```
+
+For example:
+
+```sh
+$ pip install git+http://https://github.com/ShihHsuanChen/dcmtrans.git@v0.1.6
 ```
 
 ### Via git-submodule
