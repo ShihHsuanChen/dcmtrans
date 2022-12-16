@@ -19,15 +19,14 @@ def pi_classifier(dicom_file: pydicom.FileDataset) -> str:
 def pi_monochrome1(
         dicom_file: pydicom.FileDataset,
         image_data: numpy.ndarray,
-        nbits: int
+        nbits: int,
         ) -> numpy.ndarray:
-    new_image_data = (-image_data + nbits - 1)
-    return new_image_data
+    return -image_data + nbits - 1
 
 
 def pi_monochrome2(
         dicom_file: pydicom.FileDataset,
         image_data: numpy.ndarray,
-        nbits: int
+        nbits: int,
         ) -> numpy.ndarray:
     return image_data

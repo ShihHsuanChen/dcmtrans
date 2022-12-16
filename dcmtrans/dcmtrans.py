@@ -3,7 +3,7 @@ import traceback
 import PIL.Image
 import numpy as np
 
-from typing import Union, Callable, Dict, List, Any
+from typing import Union, Callable, Dict, List, Any, Optional
 
 from .trans_method import do_nothing
 
@@ -35,8 +35,8 @@ DEPTH = int(2**BITS_TRANS)
 def dcmtrans(
         dcmObj: pydicom.FileDataset,
         image_data: np.ndarray,
-        depth: int=DEPTH,
-        window: List[Union[str, Dict[str, Union[int, float]]]]=('default',)
+        depth: int = DEPTH,
+        window: List[Union[str, Dict[str, Union[int, float]]]] = ('default',)
         ) -> [List[Union[None, np.ndarray]], List[Union[None, Exception]], Dict[str, str]]:
     """
 
@@ -113,8 +113,8 @@ def voi_trans(
         dcmObj: pydicom.FileDataset,
         image_data: np.ndarray,
         depth: int,
-        unit: str=None,
-        window='default'
+        unit: Optional[str] = None,
+        window = 'default',
         ) -> [str, np.ndarray]:
     mode, func = get_voi_trans_func(dcmObj)
     if func is not None:
@@ -137,7 +137,7 @@ def get_pi_trans_func(dcmObj: pydicom.FileDataset) -> [str, Union[Callable, None
 def pi_trans(
         dcmObj: pydicom.FileDataset,
         image_data: np.ndarray,
-        depth: int
+        depth: int,
         ) -> [str, np.ndarray]:
     mode, func = get_pi_trans_func(dcmObj)
     if func is not None:

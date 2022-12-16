@@ -1,5 +1,6 @@
 import pydicom
-import numpy
+import numpy as np
+from typing import Optional
 
 from .trans_method import lut_trans
 from .trans_method import window_linear_trans
@@ -70,44 +71,44 @@ def _get_window(dicom_file: pydicom.FileDataset, window='default', unit=None):
 
 def voi_linear_trans(
         dicom_file: pydicom.FileDataset,
-        image_data: numpy.ndarray,
+        image_data: np.ndarray,
         depth: int,
         window='default',
-        unit: str=None
-        ):
+        unit: Optional[str] = None,
+        ) -> np.ndarray:
     window_center, window_width = _get_window(dicom_file, window=window, unit=unit)
     return window_linear_trans(image_data, window_center, window_width, depth)
 
 
 def voi_linear_exact_trans(
-        dicom_file: pydicom.FileDataset, 
-        image_data: numpy.ndarray,
+        dicom_file: pydicom.FileDataset,
+        image_data: np.ndarray,
         depth: int,
         window='default',
-        unit: str=None
-        ):
+        unit: Optional[str] = None,
+        ) -> np.ndarray:
     window_center, window_width = _get_window(dicom_file, window, unit=unit)
     return window_linear_exact_trans(image_data, window_center, window_width, depth)
 
 
 def voi_sigmoid_trans(
         dicom_file: pydicom.FileDataset,
-        image_data: numpy.ndarray,
+        image_data: np.ndarray,
         depth,
         window='default',
-        unit: str=None
-        ):
+        unit: Optional[str] = None,
+        ) -> np.ndarray:
     window_center, window_width = _get_window(dicom_file, window, unit=unit)
     return window_sigmoid_trans(image_data, window_center, window_width, depth)
 
 
 def voi_lut_trans(
         dicom_file: pydicom.FileDataset,
-        image_data: numpy.ndarray, 
+        image_data: np.ndarray,
         depth,
         window='default',
-        unit: str=None
-        ):
+        unit: Optional[str] = None,
+        ) -> np.ndarray:
     VOILUTSequence = getattr(dicom_file, 'VOILUTSequence', [{}])[0]
     lut_descriptor = VOILUTSequence.get('LUTDescriptor')
     if lut_descriptor is None:
@@ -116,19 +117,19 @@ def voi_lut_trans(
     if isinstance(lut_descriptor, bytes):
         PixelRepresentation = int(dicom_file.get('PixelRepresentation'))
         if modality_classifier(dicom_file) is None and PixelRepresentation == 0:
-            dtype = numpy.ushort
+            dtype = np.ushort
         else:
-            dtype = numpy.short
-        lut_descriptor = numpy.frombuffer(lut_descriptor, dtype)
+            dtype = np.short
+        lut_descriptor = np.frombuffer(lut_descriptor, dtype)
 
     lut_data = VOILUTSequence.get('LUTData')
     if isinstance(lut_data, bytes):
         if lut_descriptor[2] == 8:
-            dtype = numpy.uint8
+            dtype = np.uint8
         elif lut_descriptor[2] == 16:
-            dtype = numpy.uint16
+            dtype = np.uint16
         else:
             raise ValueError(f'LUTDescriptor[2] should be 8 or 16. Got {lut_descriptor[2]}')
-        lut_data = numpy.frombuffer(lut_data, dtype)
+        lut_data = np.frombuffer(lut_data, dtype)
     scale_factor = depth / int(2**getattr(dicom_file, 'BitsStored', 12))
     return lut_trans(image_data, lut_descriptor, lut_data, scale_factor)
