@@ -1,10 +1,12 @@
 import warnings
+from typing import Optional
+
 
 def classify(dcmObj):
     return getattr(dcmObj, 'Modality', None)
 
 
-def reconstruct_series(dicom_dict):
+def reconstruct_series(dicom_dict, modality: Optional[str] = None):
     '''
     1. get InstanceNumber as the original indexing and make map indexing -> dicom filename
     2. check inner product of ImageOrientationPatient of first and second images: if == 0 -> discard first
@@ -42,10 +44,13 @@ def reconstruct_series(dicom_dict):
     index_list = list(index_map.keys())
     index_list.sort()
 
-    mod_list = list({classify(x) for _, x in dicom_dict.items()})
-    if len(mod_list) > 1:
-        raise AssertionError('Multiple Modality were found')
-    mod = mod_list[0]
+    if modality is None:
+        mod_list = list({classify(x) for _, x in dicom_dict.items()})
+        if len(mod_list) > 1:
+            raise AssertionError('Multiple Modality were found')
+        mod = mod_list[0]
+    else:
+        mod = modality.upper()
 
     if mod == 'CR':
         if len(index_list) == 0:
