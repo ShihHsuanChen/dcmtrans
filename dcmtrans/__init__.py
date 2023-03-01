@@ -30,6 +30,11 @@ from .dcmtrans import pi_trans
 from .dcmtrans import dcmtrans
 from .dcmtrans import reconstruct
 from .dcmtrans import image_convert
+
+from .reconstruction import *
+from .volume import *
+from .scan import *
+
 from .ct_window import PRESET_WINDOW as CT_PRESET_WINDOW
 
 from .dcm_imread import *
