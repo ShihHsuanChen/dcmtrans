@@ -90,6 +90,8 @@ def classify(dcmObj):
 def reconstruct_series(
         dicom_dict: Dict[T, FileDataset],
         modality: Optional[str] = None,
+        ignore_index_jump: bool = False,
+        ignore_not_aligned: bool = False,
         ) -> RecInfo:
     '''
     1. get InstanceNumber as the original indexing and make map indexing -> dicom filename
@@ -179,7 +181,13 @@ def reconstruct_series(
     elif mod in ['CT', 'MR']:
         if len(index_list) < 2:
             raise AssertionError('Cannot be reconstructed: Number of CT images less than 2')
-        res = _recon_ct_mr(index_map, index_data_dict, index_list)
+        res = _recon_ct_mr(
+            index_map,
+            index_data_dict,
+            index_list,
+            ignore_index_jump=ignore_index_jump,
+            ignore_not_aligned=ignore_not_aligned,
+        )
         index_data_dict = res['index_data_dict']
         index_list = res['index_list']
         index_map = res['index_map']
@@ -222,7 +230,13 @@ def reconstruct_series(
     return rec_info
 
 
-def _recon_ct_mr(index_map, index_data_dict, index_list):
+def _recon_ct_mr(
+        index_map: Dict[int, T],
+        index_data_dict: Dict[int, FileDataset],
+        index_list: List[T],
+        ignore_index_jump: bool = False,
+        ignore_not_aligned: bool = False,
+        ):
     # for CT and MR
     # 2. check inner product of ImageOrientationPatient of first and second images: if == 0 -> discard first
     #    2.1 get first and second
@@ -273,7 +287,7 @@ def _recon_ct_mr(index_map, index_data_dict, index_list):
             continue
 
         ind0 = index_list[i-1]
-        if (ind1 - ind0) != 1:
+        if (ind1 - ind0) != 1 and not ignore_index_jump:
             okay = False
             msglist.append(f'index jump {ind0} -> {ind1}')
             continue
@@ -293,7 +307,7 @@ def _recon_ct_mr(index_map, index_data_dict, index_list):
             -dp[1]*iop[0]*iop[3+2],
             -dp[2]*iop[1]*iop[3+0]
             ])
-        if abs(tmp_dot/spacing) < 0.99:
+        if abs(tmp_dot/spacing) < 0.99 and not ignore_not_aligned:
             msglist.append(f'{ind0} and {ind1} do not aligned')
             okay = False
             continue
