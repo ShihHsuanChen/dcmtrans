@@ -1,40 +1,44 @@
 import os
-import  traceback
-from typing import Dict, Any
+import traceback
+from pathlib import Path
+from types import GeneratorType
+from typing import Dict, Any, Iterable, Generator
 from collections import namedtuple
 import pydicom
 
+from .typing import PathLike
 from .reconstruction import reconstruct_series, RecInfo
 
 
 InstanceKey = namedtuple('InstanceKey', ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID'])
 
 
-def scan_directory(topdir: str) -> Dict[InstanceKey, Dict[str, pydicom.FileDataset]]:
+def collect_dicoms(
+        scanner: Union[Generator, Iterable],
+        ) -> Dict[InstanceKey, Dict[str, pydicom.FileDataset]]:
     collections = dict() # {<InstanceKey object>: {<path>: <dcmobj>}}}
-    # read dicom files 
-    for root, ds, fs in os.walk(topdir):
-        for fname in fs:
-            p = os.path.join(root, fname)
-            try:
-                dcmobj = pydicom.dcmread(p)
-            except Exception as e:
-                print(f'Cannot read file {p}. {e}')
-                print(traceback.format_exc())
-                continue
-            if not hasattr(dcmobj, 'SeriesInstanceUID'):
-                print(f'Cannot find attribute "SeriesInstanceUID" from file {p}')
-                continue
-            key = InstanceKey(*[str(getattr(dcmobj, tag, '')) for tag in InstanceKey._fields])
-            suid = str(dcmobj.SeriesInstanceUID)
-            if key not in collections:
-                collections[key] = dict()
-            collections[key][p] = dcmobj
+    for p in scanner:
+        try:
+            dcmobj = pydicom.dcmread(p)
+        except Exception as e:
+            print(f'Cannot read file {p}. {e}')
+            print(traceback.format_exc())
+            continue
+        if not hasattr(dcmobj, 'SeriesInstanceUID'):
+            print(f'Cannot find attribute "SeriesInstanceUID" from file {p}')
+            continue
+        key = InstanceKey(*[str(getattr(dcmobj, tag, '')) for tag in InstanceKey._fields])
+        suid = str(dcmobj.SeriesInstanceUID)
+        if key not in collections:
+            collections[key] = dict()
+        collections[key][p] = dcmobj
     return collections
 
 
-def scan_directory_reconstuct(topdir: str) -> Dict[InstanceKey, RecInfo]:
-    collections = scan_directory(topdir)
+def collect_dicoms_reconstuct(
+        scanner: Union[Generator, Iterable],
+        ) -> Dict[InstanceKey, RecInfo]:
+    collections = collect_dicoms(scanner)
     # reconstruct series
     series_dict = dict()
     for key, dcm_dict in collections.items():
@@ -46,3 +50,17 @@ def scan_directory_reconstuct(topdir: str) -> Dict[InstanceKey, RecInfo]:
         else:
             series_dict[key] = rec_info
     return series_dict
+
+
+def _dir_scanner(topdir):
+    for root, ds, fs in os.walk(topdir):
+        for fname in fs:
+            yield os.path.join(root, fname)
+
+
+def scan_directory(topdir: str) -> Dict[InstanceKey, Dict[str, pydicom.FileDataset]]:
+    return collect_dicoms(_dir_scanner(topdir))
+
+
+def scan_directory_reconstuct(topdir: str) -> Dict[InstanceKey, RecInfo]:
+    return collect_dicoms_reconstuct(_dir_scanner(topdir))
