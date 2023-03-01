@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Iterable
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from .typing import PathLike
 from .dcmtrans import dcmtrans
@@ -51,6 +50,8 @@ def plot_volume(
         metadata: Optional[Iterable[Any]] = None,
         **kwargs,
         ):
+    import matplotlib.pyplot as plt
+
     kwargs = {'cmap': 'gray', **kwargs}
     N = volume.shape[0] // dilute
     ncols = min(ncols, N)

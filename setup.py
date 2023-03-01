@@ -20,6 +20,12 @@ setup(
         'dev_template': '{tag}.post{ccount}',
         'dirty_template': '{tag}.post{ccount}+dirty',
     },
+    extras_require={
+        'all': [
+            'nibabel>=4.0.1',
+            'matplotlib',
+        ],
+    },
     setup_requires=['setuptools-git-versioning'],
     install_requires=get_requirements(['requirements.txt']),
     packages=find_packages(exclude=['test']),
