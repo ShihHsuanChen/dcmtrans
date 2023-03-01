@@ -176,10 +176,10 @@ def reconstruct_series(
         series_like = None # AP / PA / ???
         ipp = None
         iop = None
-    elif mod == 'CT':
+    elif mod in ['CT', 'MR']:
         if len(index_list) < 2:
             raise AssertionError('Cannot be reconstructed: Number of CT images less than 2')
-        res = _recon_ct(index_map, index_data_dict, index_list)
+        res = _recon_ct_mr(index_map, index_data_dict, index_list)
         index_data_dict = res['index_data_dict']
         index_list = res['index_list']
         index_map = res['index_map']
@@ -188,8 +188,6 @@ def reconstruct_series(
         series_like = res['series_like']
         ipp = res['image_position_patient']
         iop = res['image_orientation_patient']
-    # elif mod == 'MR':
-        # TODO
     else:
         raise NotImplementedError(f'No reconstruction methods for {mod}')
 
@@ -224,8 +222,8 @@ def reconstruct_series(
     return rec_info
 
 
-def _recon_ct(index_map, index_data_dict, index_list):
-    # for CT
+def _recon_ct_mr(index_map, index_data_dict, index_list):
+    # for CT and MR
     # 2. check inner product of ImageOrientationPatient of first and second images: if == 0 -> discard first
     #    2.1 get first and second
     dcm1 = index_data_dict.get(index_list[0])
