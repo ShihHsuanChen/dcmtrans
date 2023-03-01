@@ -39,13 +39,14 @@ def collect_dicoms(
 
 def collect_dicoms_reconstuct(
         scanner: Union[Generator, Iterable],
+        **kwargs,
         ) -> Dict[InstanceKey, RecInfo]:
     collections = collect_dicoms(scanner)
     # reconstruct series
     series_dict = dict()
     for key, dcm_dict in collections.items():
         try:
-            rec_info = reconstruct_series(dcm_dict)
+            rec_info = reconstruct_series(dcm_dict, **kwargs)
         except Exception as e:
             print(e)
             print(traceback.format_exc())
@@ -64,5 +65,5 @@ def scan_directory(topdir: str) -> Dict[InstanceKey, Dict[str, pydicom.FileDatas
     return collect_dicoms(_dir_scanner(topdir))
 
 
-def scan_directory_reconstuct(topdir: str) -> Dict[InstanceKey, RecInfo]:
-    return collect_dicoms_reconstuct(_dir_scanner(topdir))
+def scan_directory_reconstuct(topdir: str, **kwargs) -> Dict[InstanceKey, RecInfo]:
+    return collect_dicoms_reconstuct(_dir_scanner(topdir), **kwargs)
