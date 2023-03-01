@@ -114,7 +114,6 @@ def dcmvol2nii_3dslicer(
     ipp, iop, ps = np.array(ipp), np.array(iop), np.array(ps)
 
     # check dimension
-    print(vol.shape)
     D,H,W = vol.shape
     if ps.ndim == 2:
         ps = ps[0]
@@ -171,7 +170,7 @@ def dcmvol2nii_3dslicer(
     return nibobj
 
 
-def nii2dcmvol(nibobj: nib.nifti1.Nifti1Image):
+def nii2dcmvol(nibobj: nib.nifti1.Nifti1Image) -> np.ndarray:
     return np.array(nibobj.dataobj).T
 
 
