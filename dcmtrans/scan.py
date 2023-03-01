@@ -20,7 +20,7 @@ def scan_directory(topdir: str) -> Dict[InstanceKey, Dict[str, pydicom.FileDatas
                 dcmobj = pydicom.dcmread(p)
             except Exception as e:
                 print(f'Cannot read file {p}. {e}')
-                print(tracebace.format_exc())
+                print(traceback.format_exc())
                 continue
             if not hasattr(dcmobj, 'SeriesInstanceUID'):
                 print(f'Cannot find attribute "SeriesInstanceUID" from file {p}')
