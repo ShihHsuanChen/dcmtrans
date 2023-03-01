@@ -49,13 +49,17 @@ def plot_volume(
         ncols: int = 5,
         figwidth: float = 10,
         metadata: Optional[Iterable[Any]] = None,
+        **kwargs,
         ):
+    kwargs = {'cmap': 'gray', **kwargs}
     N = volume.shape[0] // dilute
+    ncols = min(ncols, N)
     nrows = int(np.ceil(N/ncols))
     fig, axs = plt.subplots(nrows, ncols, figsize=(figwidth,figwidth/ncols*nrows))
-    for i, _axs in enumerate(axs): # nrows
-        for j, ax in enumerate(_axs): # ncols
+    for i in range(nrows): # nrows
+        for j in range(ncols): # ncols
             k = i*ncols+j
+            ax = axs.flat[k]
             if k < N:
                 _k = k*dilute
                 if metadata is not None:
@@ -63,7 +67,7 @@ def plot_volume(
                     text = '\n' + text
                 else:
                     text = ''
-                ax.imshow(volume[_k], cmap='gray')
+                ax.imshow(volume[_k], **kwargs)
                 ax.set_title(f'Index: {_k}{text}')
             ax.axis('off')
     return fig, axs
