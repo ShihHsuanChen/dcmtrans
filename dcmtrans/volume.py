@@ -46,15 +46,16 @@ def build_volume_from_recon_info(rec_info: RecInfo[PathLike]) -> np.ndarray:
 def plot_volume(
         volume: np.ndarray,
         dilute: int = 1,
-        Ncols: int = 5,
+        ncols: int = 5,
+        figwidth: float = 10,
         metadata: Optional[Iterable[Any]] = None,
         ):
     N = volume.shape[0] // dilute
-    Nrows = int(np.ceil(N/Ncols))
-    fig, axs = plt.subplots(Nrows, Ncols, figsize=(10,10/Ncols*Nrows))
-    for i, _axs in enumerate(axs): # Nrows
-        for j, ax in enumerate(_axs): # Ncols
-            k = i*Ncols+j
+    nrows = int(np.ceil(N/ncols))
+    fig, axs = plt.subplots(nrows, ncols, figsize=(10,10/ncols*nrows))
+    for i, _axs in enumerate(axs): # nrows
+        for j, ax in enumerate(_axs): # ncols
+            k = i*ncols+j
             if k < N:
                 _k = k*dilute
                 if metadata is not None:
