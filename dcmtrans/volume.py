@@ -52,7 +52,7 @@ def plot_volume(
         ):
     N = volume.shape[0] // dilute
     nrows = int(np.ceil(N/ncols))
-    fig, axs = plt.subplots(nrows, ncols, figsize=(10,10/ncols*nrows))
+    fig, axs = plt.subplots(nrows, ncols, figsize=(figwidth,figwidth/ncols*nrows))
     for i, _axs in enumerate(axs): # nrows
         for j, ax in enumerate(_axs): # ncols
             k = i*ncols+j
