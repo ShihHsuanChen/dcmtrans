@@ -1,12 +1,96 @@
 import warnings
-from typing import Optional
+from typing import Optional, Generic, List, Set, Union, Dict, Any
+from pydicom import FileDataset
+from pydantic.generics import GenericModel
+
+from .typing import T, NTuple
+
+
+__all__ = ['RecInfo', 'reconstruct_series', 'get_instance_info']
+
+
+class RecInfo(GenericModel, Generic[T]):
+    r"""
+    Usage:
+        - RecInfo(...): any key type
+        - RecInfo[int](...): restrict to integer key type
+        - RecInfo[MyType](...): restrict to "MyType" key type
+    Attributes
+        - index_list: [<InstanceNumber;int>]
+        - index_map: {<InstanceNumber;int>: <key of dicom_dict>}
+        - index_dicom_dict: {<InstanceNumber;int>: <FileDataset>}
+        - series_like: <series like axial/coronal/sagittal/other>
+        - chirality: <+1/-1> +1 if right-handed, index increasing from
+                     anterior(front)/right/feet to posterior(back)/left/head
+                     or ((Pn - Pn-1) dot k) > 0; vice versa
+                     Return `None` if series is not a 3D volume
+        - use_contrast: <True: w/ contrast; False: w/o contrast>
+        - slice_spacing: <calculated spacing; float, optional>
+        - description: (str) SeriesDescription 
+        - N_pixel_i: (int) number of pixels along first row, or W, i 
+        - N_pixel_j: (int) number of pixels along first column, or H, j 
+        - spacing_i: (float, optional) spacing between the centers of adjacent
+                     columns, or horizontal spacing in mm
+        - spacing_j: (float, optional) spacing between the centers of adjacent
+                     rows, or vertical spacing in mm
+        - spacing_slice: (set, float, optional) spacing between slices in mm 
+        - slice_thickness: (float, optional) slice thickness in mm
+        - PixelSpacing: (tuple) spacing between pixels (H,W) or (j,i), same as PixelSpacing tag
+        - ImageOrientationPatient: [<float>]*6, optional
+        - ImagePositionPatient: [<float>]*3, optional
+        - PatientPosition: (str, optional) PatientPosition
+    """
+    index_list: List[int]
+    r""" list of InstanceNumber (int) """
+    index_map: Dict[int, T]
+    r""" dictionary: InstanceNumber(int) -> key of dicom_dict """
+    index_dicom_dict: Dict[int, Any]
+    r""" dictionary: InstanceNumber(int) -> value of dicom_dict """
+    series_like: Optional[str]
+    r""" series like axial/coronal/sagittal/other """
+    chirality: Optional[int]
+    r""" <+1/-1>
+    +1 if right-handed, index increasing from
+    anterior(front)/right/feet to posterior(back)/left/head
+    or ((Pn - Pn-1) dot k) > 0; vice versa
+    Return `None` if series is not a 3D volume
+    """
+    use_contrast: bool
+    r""" check if ContrastBolusAgent has value.
+    True: w/ contrast; False: w/o contrast
+    """
+    description: str = ''
+    r""" SeriesDescription """
+    N_pixel_i: int
+    r""" number of pixels along first row, or W, i """
+    N_pixel_j: int
+    r""" number of pixels along first column, or H, j """
+    spacing_i: Optional[float]
+    r""" spacing between the centers of adjacent columns, or horizontal spacing in mm """
+    spacing_j: Optional[float]
+    r""" spacing between the centers of adjacent rows, or vertical spacing in mm """
+    spacing_slice: Union[None, Set[float], float] = None
+    r""" spacing between slices in mm """
+    slice_thickness: Optional[float] = None
+    r""" slice thickness """
+    PixelSpacing: NTuple(float, 2)
+    r""" spacing between pixels (H,W) or (j,i), same as dicom records """
+    ImageOrientationPatient: Optional[NTuple(float, 6)] = None
+    r""" ImageOrientationPatient [<float>]*6, optional """
+    ImagePositionPatient: Optional[List[NTuple(float, 3)]] = None
+    r""" ImagePositionPatient [<float>]*3, optional """
+    PatientPosition: Optional[str] = None
+    r""" PatientPosition """
 
 
 def classify(dcmObj):
     return getattr(dcmObj, 'Modality', None)
 
 
-def reconstruct_series(dicom_dict, modality: Optional[str] = None):
+def reconstruct_series(
+        dicom_dict: Dict[T, FileDataset],
+        modality: Optional[str] = None,
+        ) -> RecInfo:
     '''
     1. get InstanceNumber as the original indexing and make map indexing -> dicom filename
     2. check inner product of ImageOrientationPatient of first and second images: if == 0 -> discard first
@@ -18,28 +102,44 @@ def reconstruct_series(dicom_dict, modality: Optional[str] = None):
 
     Input: dicom_dict
         dicom_dict: {<unique key(instance_no or filename)>: <FileDataset object of same SeriesDescription>}
-    Return: data
-        data = {
-            index_list: [<index>]
-            index_map: {<index>: <dicom filename>}
-            index_dicom_dict: {<index>: <FileDataset>}
-            series_like: <series like axial/coronal/sagittal/other>
-            chirality: <True(right-handed, index increasing from front to back): ((Pn - Pn-1) dot k) > 0; vice versa>
-            use_contrast: <True: w/ contrast; False: w/o contrast>
-            spacing: <calculated spacing>
-            ImageOrientationPatient: [<float>]
-        }
+    Return: RecInfo
+        RecInfo:
+        * index_list: [<InstanceNumber;int>]
+        * index_map: {<InstanceNumber;int>: <key of dicom_dict>}
+        * index_dicom_dict: {<InstanceNumber;int>: <FileDataset>}
+        * series_like: <series like axial/coronal/sagittal/other>
+        * chirality: <+1/-1> +1 if right-handed, index increasing from
+                     anterior(front)/right/feet to posterior(back)/left/head
+                     or ((Pn - Pn-1) dot k) > 0; vice versa
+                     Return `None` if series is not a 3D volume
+        * use_contrast: <True: w/ contrast; False: w/o contrast>
+        * slice_spacing: <calculated spacing; float, optional>
+        * description: (str) SeriesDescription 
+        * N_pixel_i: (int) number of pixels along first row, or W, i 
+        * N_pixel_j: (int) number of pixels along first column, or H, j 
+        * spacing_i: (float, optional) spacing between the centers of adjacent
+        *            columns, or horizontal spacing in mm
+        * spacing_j: (float, optional) spacing between the centers of adjacent
+        *            rows, or vertical spacing in mm
+        * spacing_slice: (float, optional) spacing between slices in mm 
+        * slice_thickness: (float, optional) slice thickness 
+        * PixelSpacing: (tuple) spacing between pixels (H,W) or (j,i), same as PixelSpacing tag
+        * ImageOrientationPatient: [<float>]*6, optional
+        * ImagePositionPatient: [<float>]*3, optional
+        * PatientPosition: (str, optional) PatientPosition
     '''
 
     # 1. get InstanceNumber as the original indexing and make map indexing -> dicom filename
     index_map = {
-            int(x.InstanceNumber): unikey
-            for unikey, x in dicom_dict.items()
-            if getattr(x, 'InstanceNumber', None) is not None}
+        int(x.InstanceNumber): unikey
+        for unikey, x in dicom_dict.items()
+        if getattr(x, 'InstanceNumber', None) is not None
+    }
 
     index_data_dict = {
-            i: dicom_dict.get(unikey)
-            for i, unikey in index_map.items()}
+        i: dicom_dict.get(unikey)
+        for i, unikey in index_map.items()
+    }
 
     index_list = list(index_map.keys())
     index_list.sort()
@@ -62,7 +162,8 @@ def reconstruct_series(dicom_dict, modality: Optional[str] = None):
         chirality = None
         spacing_slice = None
         series_like = getattr(dcmObj, 'ViewPosition', None)
-        image_orientation_patient = None
+        ipp = None
+        iop = None
     elif mod == 'DX':
         if len(index_list) == 0:
             raise AssertionError('No instance was found')
@@ -73,7 +174,8 @@ def reconstruct_series(dicom_dict, modality: Optional[str] = None):
         chirality = None
         spacing_slice = None
         series_like = None # AP / PA / ???
-        image_orientation_patient = None
+        ipp = None
+        iop = None
     elif mod == 'CT':
         if len(index_list) < 2:
             raise AssertionError('Cannot be reconstructed: Number of CT images less than 2')
@@ -84,9 +186,12 @@ def reconstruct_series(dicom_dict, modality: Optional[str] = None):
         chirality = res['chirality']
         spacing_slice = res['spacing_slice']
         series_like = res['series_like']
-        image_orientation_patient = res['image_orientation_patient']
+        ipp = res['image_position_patient']
+        iop = res['image_orientation_patient']
+    # elif mod == 'MR':
+        # TODO
     else:
-        raise AssertionError(f'No reconstruction methods for {mod}')
+        raise NotImplementedError(f'No reconstruction methods for {mod}')
 
     # 6. retag contrast with ContrastBolusAgent: null -> w/o contrast, otherwise -> w/
     use_contrast = getattr(index_data_dict.get(index_list[0]), 'ContrastBolusAgent', False)
@@ -95,22 +200,28 @@ def reconstruct_series(dicom_dict, modality: Optional[str] = None):
     # 7. return map, dicom_dict that indexing by InstanceNumber, use_contrast, series_like, ..
     first = index_data_dict.get(index_list[0])
     index_dicom_dict = {i: dicom_dict.get(unikey) for i, unikey in index_map.items()}
-    return {'index_list': index_list,
-            'index_map': index_map,
-            'index_dicom_dict': index_dicom_dict,
-            'chirality': chirality,
-            'series_like': series_like,
-            'use_contrast': use_contrast,
-            'spacing_slice': spacing_slice,
-            'ImageOrientationPatient': image_orientation_patient,
-            'N_pixel_i': getattr(first, 'Rows', -1),
-            'N_pixel_j': getattr(first, 'Columns', -1),
-            'spacing_i': float(getattr(first, 'PixelSpacing', [1, 1])[1]), # i -> spacing between columns
-            'spacing_j': float(getattr(first, 'PixelSpacing', [1, 1])[0]), # j -> spacing between rows
-            'description': getattr(first, 'SeriesDescription', 'DefaultForNone'),
-            'slice_thickness': getattr(first, 'SliceThickness', None),
-            'patient_position': getattr(first, 'PatientPosition', None),
-            }
+    rec_info = RecInfo(
+        index_list=index_list,
+        index_map=index_map,
+        index_dicom_dict=index_dicom_dict,
+        chirality=chirality,
+        series_like=series_like,
+        use_contrast=use_contrast,
+        description=getattr(first, 'SeriesDescription', ''),
+        N_pixel_i=getattr(first, 'Rows', -1),
+        N_pixel_j=getattr(first, 'Columns', -1),
+        # i -> spacing between columns
+        spacing_i=float(getattr(first, 'PixelSpacing', [1, 1])[1]),
+        # j -> spacing between rows
+        spacing_j=float(getattr(first, 'PixelSpacing', [1, 1])[0]),
+        spacing_slice=spacing_slice,
+        slice_thickness=getattr(first, 'SliceThickness', None),
+        PixelSpacing=tuple(getattr(first, 'PixelSpacing', [1, 1])),
+        PatientPosition=getattr(first, 'PatientPosition', None),
+        ImagePositionPatient=ipp,
+        ImageOrientationPatient=iop,
+    )
+    return rec_info
 
 
 def _recon_ct(index_map, index_data_dict, index_list):
@@ -154,7 +265,7 @@ def _recon_ct(index_map, index_data_dict, index_list):
     iop_list = [[float(x)
                  for x in index_data_dict.get(ind).ImageOrientationPatient]
                 for ind in index_list]
-    pos_list = [[float(x)
+    ipp_list = [[float(x)
                  for x in index_data_dict.get(ind).ImagePositionPatient]
                 for ind in index_list]
     chirality_list = list()
@@ -169,8 +280,8 @@ def _recon_ct(index_map, index_data_dict, index_list):
             msglist.append(f'index jump {ind0} -> {ind1}')
             continue
         iop = iop_list[i-1]
-        pos1 = pos_list[i]
-        pos0 = pos_list[i-1]
+        pos1 = ipp_list[i]
+        pos0 = ipp_list[i-1]
         dp = [pos1[j] - pos0[j] for j in range(3)]
         spacing = sum([x**2 for x in dp])**0.5
         if abs(spacing) < 1e-4:
@@ -199,6 +310,7 @@ def _recon_ct(index_map, index_data_dict, index_list):
         chirality = None
     else:
         chirality = chirality_list[0]
+    chirality = 1 if chirality else -1
 
     # 4. calculate spacing
     # if len(set([round(x*1E3) for x in spacing_list])) != 1:
@@ -219,9 +331,10 @@ def _recon_ct(index_map, index_data_dict, index_list):
             'index_map': index_map,
             'chirality': chirality,
             # 'spacing_slice': float('%.3f' % spacing),
-            'spacing_slice': set([round(x*1E3) for x in spacing_list]),
+            'spacing_slice': set([round(x*1e4)*1e-4 for x in spacing_list]),
             'series_like': series_like,
-            'image_orientation_patient': [float('%.4f'%x) for x in iop],
+            'image_orientation_patient': iop,
+            'image_position_patient': ipp_list,
             }
 
 

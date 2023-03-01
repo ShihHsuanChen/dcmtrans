@@ -32,14 +32,18 @@ BITS_TRANS = get_nbits_from_colormap(DEFULT_COLORMAP)
 DEPTH = int(2**BITS_TRANS)
 
 
+WindowType = Union[
+    str, # examples: 'lung', 'abdomen' .etc. see dcmtrans.CT_PRESET_WIINDOW
+    Dict[str, Union[int, float]], # {'window_center': window center, 'window_width': window width}
+]
+
 def dcmtrans(
         dcmObj: pydicom.FileDataset,
         image_data: np.ndarray,
         depth: int = DEPTH,
-        window: List[Union[str, Dict[str, Union[int, float]]]] = ('default',)
+        window: Optional[List[WindowType]] = ('default',)
         ) -> [List[Union[None, np.ndarray]], List[Union[None, Exception]], Dict[str, str]]:
     """
-
     :param dcmObj: object read from pydicom
     :param image_data: image array
     :param depth: output image bit-depth. example: 256 (2**8)
@@ -56,17 +60,20 @@ def dcmtrans(
     voi_mode = None
     pi_mode = None
 
-    for w in window:
-        try:
-            m_image_data = np.copy(t_image_data)
-            voi_mode, m_image_data = voi_trans(dcmObj, m_image_data, depth, unit=unit, window=w)
-            pi_mode, m_image_data = pi_trans(dcmObj, m_image_data, depth)
-            exc = None
-        except Exception as e:
-            m_image_data = None
-            exc = e
-        exception_list.append(exc)
-        image_data_list.append(m_image_data)
+    if window is None:
+        image_data_list = [t_image_data]
+    else:
+        for w in window:
+            try:
+                m_image_data = np.copy(t_image_data)
+                voi_mode, m_image_data = voi_trans(dcmObj, m_image_data, depth, unit=unit, window=w)
+                pi_mode, m_image_data = pi_trans(dcmObj, m_image_data, depth)
+                exc = None
+            except Exception as e:
+                m_image_data = None
+                exc = e
+            exception_list.append(exc)
+            image_data_list.append(m_image_data)
 
     return image_data_list, exception_list, {'modality': mod_mode, 'modality_unit': unit, 'voi': voi_mode, 'pi': pi_mode}
 
@@ -146,6 +153,7 @@ def pi_trans(
         return mode, do_nothing(image_data)
 
 
+# TODO
 def reconstruct(tank: List[Dict[str, Any]]) -> Dict:
     """
     :param tank:
@@ -201,6 +209,7 @@ def reconstruct(tank: List[Dict[str, Any]]) -> Dict:
 
         try:
             rec_data = reconstruct_series(inst_dict)
+            rec_data = rec_data.dict()
         except AssertionError as e:
             obj = inst_dict.get(list(inst_dict.keys())[0])
             result[series_no]['info'] = {
