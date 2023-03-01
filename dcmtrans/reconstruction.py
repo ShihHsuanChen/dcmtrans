@@ -208,8 +208,8 @@ def reconstruct_series(
         series_like=series_like,
         use_contrast=use_contrast,
         description=getattr(first, 'SeriesDescription', ''),
-        N_pixel_i=getattr(first, 'Rows', -1),
-        N_pixel_j=getattr(first, 'Columns', -1),
+        N_pixel_i=getattr(first, 'Columns', -1),
+        N_pixel_j=getattr(first, 'Rows', -1),
         # i -> spacing between columns
         spacing_i=float(getattr(first, 'PixelSpacing', [1, 1])[1]),
         # j -> spacing between rows
