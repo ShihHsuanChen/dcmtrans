@@ -2,7 +2,7 @@ import os
 import traceback
 from pathlib import Path
 from types import GeneratorType
-from typing import Dict, Any, Iterable, Generator
+from typing import Dict, Any, Iterable, Generator, Union
 from collections import namedtuple
 import pydicom
 
@@ -18,6 +18,8 @@ def collect_dicoms(
         ) -> Dict[InstanceKey, Dict[str, pydicom.FileDataset]]:
     collections = dict() # {<InstanceKey object>: {<path>: <dcmobj>}}}
     for p in scanner:
+        if not os.path.isfile(p):
+            continue
         try:
             dcmobj = pydicom.dcmread(p)
         except Exception as e:
