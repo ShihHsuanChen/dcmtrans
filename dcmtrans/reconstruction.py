@@ -1,3 +1,4 @@
+import logging
 import warnings
 from typing import Optional, Generic, List, Set, Union, Dict, Any
 from pydicom import FileDataset
@@ -7,6 +8,9 @@ from .typing import T, NTuple
 
 
 __all__ = ['RecInfo', 'reconstruct_series', 'get_instance_info']
+
+
+_logger = logging.getLogger(__name__)
 
 
 class RecInfo(GenericModel, Generic[T]):
@@ -146,6 +150,9 @@ def reconstruct_series(
     index_list = list(index_map.keys())
     index_list.sort()
 
+    suid = getattr(index_data_dict[index_list[0]], 'SeriesInstanceUID', '')
+    _logger.debug(f'SeriesInstanceUID: {suid}') # debug
+
     if modality is None:
         mod_list = list({classify(x) for _, x in dicom_dict.items()})
         if len(mod_list) > 1:
@@ -179,8 +186,6 @@ def reconstruct_series(
         ipp = None
         iop = None
     elif mod in ['CT', 'MR']:
-        if len(index_list) < 2:
-            raise AssertionError('Cannot be reconstructed: Number of CT images less than 2')
         res = _recon_ct_mr(
             index_map,
             index_data_dict,
@@ -233,12 +238,15 @@ def reconstruct_series(
 def _recon_ct_mr(
         index_map: Dict[int, T],
         index_data_dict: Dict[int, FileDataset],
-        index_list: List[T],
+        index_list: List[int],
         ignore_index_jump: bool = False,
         ignore_not_aligned: bool = False,
         ):
     # for CT and MR
+    if len(index_list) < 2:
+        raise AssertionError('Cannot be reconstructed: Number of CT/MR images less than 2')
     # 2. check inner product of ImageOrientationPatient of first and second images: if == 0 -> discard first
+    # TODO: if more than 1?
     #    2.1 get first and second
     dcm1 = index_data_dict.get(index_list[0])
     dcm2 = index_data_dict.get(index_list[1])
@@ -259,6 +267,9 @@ def _recon_ct_mr(
         index_data_dict = {k:v for k, v in index_data_dict.items() if k != index_list[0]}
         index_list = list(index_map.keys())
         index_list.sort()
+
+    if len(index_list) < 2:
+        raise AssertionError('Cannot be reconstructed: Number of CT/MR images less than 2')
 
     # 3. check alignment from ImagePositionPatient 
     #    3.1 check image size
@@ -300,17 +311,22 @@ def _recon_ct_mr(
             warnings.warn(f'spacing between {ind0} and {ind1} is 0')
             continue
         tmp_dot = sum([
-            dp[0] *iop[1]*iop[3+2],
-            dp[1] *iop[2]*iop[3+0],
-            dp[2] *iop[0]*iop[3+1],
+             dp[0]*iop[1]*iop[3+2],
+             dp[1]*iop[2]*iop[3+0],
+             dp[2]*iop[0]*iop[3+1],
             -dp[0]*iop[2]*iop[3+1],
             -dp[1]*iop[0]*iop[3+2],
             -dp[2]*iop[1]*iop[3+0]
             ])
-        if abs(tmp_dot/spacing) < 0.99 and not ignore_not_aligned:
-            msglist.append(f'{ind0} and {ind1} do not aligned')
-            okay = False
-            continue
+        if abs(abs(tmp_dot/spacing)-1) > 1e-2:
+            s = f'{ind0} and {ind1} do not aligned: ' \
+                f'|(ipp_diff.iop_norm)/spacing|={abs(tmp_dot/spacing)}'
+            if ignore_not_aligned:
+                _logger.debug(s)
+            else:
+                msglist.append(s)
+                okay = False
+                continue
         chirality_list.append(tmp_dot/spacing>0)
         spacing_list.append(spacing)
 
