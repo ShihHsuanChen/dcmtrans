@@ -39,7 +39,10 @@ def read_pixel_pydicom(dcm: Union[str, pydicom.dataset.FileDataset]):
 
 def read_pixel_sitk(filename: str):
     itkimg = sitk.ReadImage(filename)
-    return sitk.GetArrayFromImage(itkimg)
+    arr = sitk.GetArrayFromImage(itkimg)
+    # sitk outputs shape is (?,H,W) while pydicom gives (H,W) for CT images
+    # TODO need to test for other modalities
+    return arr.squeeze()
 
 
 def read_pixel_bytes(dcm: Union[str, pydicom.dataset.FileDataset]):
