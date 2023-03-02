@@ -50,17 +50,28 @@ def plot_volume(
         metadata: Optional[Iterable[Any]] = None,
         **kwargs,
         ):
+    r"""
+    Inputs:
+    - volume: (np.ndarray) shape (D,H,W)
+    - dilute: (int) Draw image per `dilute` slices. (default: 1)
+    - ncols: (int) Maximum number of subplot columns. If D less than ncols, number of 
+                   subplot columns will be D. (default: 5)
+    - figwidth: (float) figure width (default: 10)
+    - metadata: (iterable) text to be shown on each subplots. The length should be equal to D.
+
+    Returns: fig, axs from plt.subplots
+    """
     import matplotlib.pyplot as plt
 
     kwargs = {'cmap': 'gray', **kwargs}
-    N = volume.shape[0] // dilute
+    N = int(np.ceil(volume.shape[0]/dilute))
     ncols = min(ncols, N)
     nrows = int(np.ceil(N/ncols))
     fig, axs = plt.subplots(nrows, ncols, figsize=(figwidth,figwidth/ncols*nrows))
     for i in range(nrows): # nrows
         for j in range(ncols): # ncols
             k = i*ncols+j
-            ax = axs.flat[k]
+            ax = axs.flat[k] if nrows > 1 or ncols > 1 else axs
             if k < N:
                 _k = k*dilute
                 if metadata is not None:
