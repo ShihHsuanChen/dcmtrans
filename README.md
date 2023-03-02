@@ -31,7 +31,7 @@ $ git commit
 ```python
 import pydicom
 import numpy as np
-from dcmtrans import dcmtrans
+import dcmtrans
 
 def read_dicom_image(filename):
     # read dicom file by pydicom
