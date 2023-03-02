@@ -32,22 +32,48 @@ def recinfo2nii(rec_info: RecInfo[PathLike], **kwargs) -> nib.nifti1.Nifti1Image
 def dcmvol2nii(
         volume: np.ndarray,
         rec_info: RecInfo,
+        mode: str = 'dcmgrid',
         **kwargs,
         ) -> nib.nifti1.Nifti1Image:
-    nibobj = dcmvol2nii_3dslicer(
+    r"""
+    Inputs:
+    - volume: (np.ndarray) volume array in shape (D,H,W)
+    - rec_info: (RecInfo) output from reconstruct_series
+    - mode: (str) ['3dslicer', 'dcmgrid', 'niigrid']
+
+    other parameters depends on mode:
+    * mode '3dslicer' (no option, same as dcmgrid mode with keep_slice_order=False)
+    * mode 'dcmgrid'
+        - keep_slice_order: (bool) If True, ignore coordinate order for the 0-th
+                                   dimension (D). (default: True)
+    * mode 'niigrid' (no option, axial only, experimental)
+
+    Returns: Nifti1Image object
+    """
+    args = (
         volume,
         rec_info.ImagePositionPatient,
         rec_info.ImageOrientationPatient,
         rec_info.PixelSpacing,
     )
+    if mode == '3dslicer':
+        nibobj = dcmvol2nii_3dslicer(*args, **kwargs)
+    elif mode == 'dcmgrid':
+        nibobj = dcmvol2nii_dcmgrid(*args, **kwargs)
+    elif mode == 'niigrid':
+        nibobj = dcmvol2nii_niigrid(*args, **kwargs)
+    else:
+        raise ValueError(f'Unknown mode {mode}')
     return nibobj
 
 
-def dcmvol2nii_3dslicer(
+def dcmvol2nii_dcmgrid(
         vol: np.ndarray,
         ipp: Iterable[Union[np.ndarray, NTuple(float, 3)]],
         iop: Union[Iterable, np.ndarray, NTuple(float, 6)],
         ps: Union[Iterable, np.ndarray, NTuple(float, 2)],
+        keep_slice_order: bool = True,
+        **kwargs,
         ) -> nib.nifti1.Nifti1Image:
     r"""
     Argument:
@@ -55,6 +81,7 @@ def dcmvol2nii_3dslicer(
     - ipp: (iterable) collection of ImagePositionPatient. Shape (D,3)
     - iop: (iterable) collection of ImageOrientationPatient. Shape (D,6) or (6,)
     - ps:  (iterable) collection of PixelSpacing. Shape (D,2) or (2,)
+    - keep_slice_order: (bool) if True, ignore coordinate order for the 0-th dimension (D) (default: True)
     where D is the number of DICOM slices in the series.
 
     Returns:
@@ -126,6 +153,7 @@ def dcmvol2nii_3dslicer(
     assert ipp.shape[1] == 3
     assert iop.shape[0] == 6
     assert  ps.shape[0] == 2
+    # PixelSpacing: (h,w) -> (w,h)
     _ps = ps[::-1]
 
     # check orientation
@@ -156,7 +184,15 @@ def dcmvol2nii_3dslicer(
     # calculate affine matrix and pixdim
     cp = np.cross(*_iop) # cross product
     st = np.sqrt(np.sum(dv**2)) # slice thickness
-    _ipp = ipp[0]
+
+    if direction < 0 and keep_slice_order:
+        # reverse back
+        vol = np.flip(vol, 0)
+        _ipp = ipp[-1]
+        cp = -cp
+    else:
+        _ipp = ipp[0]
+
     affine = np.array([
         [-_iop[0,0]*_ps[0], -_iop[1,0]*_ps[1], -cp[0]*st, -_ipp[0]],
         [-_iop[0,1]*_ps[0], -_iop[1,1]*_ps[1], -cp[1]*st, -_ipp[1]],
@@ -164,6 +200,41 @@ def dcmvol2nii_3dslicer(
         [                0,                 0,         0,        1],
     ])
     # pixdim = np.array([1, _ps[0], _ps[1], st, 0, 0, 0])
+    nibobj = nib.Nifti1Image(vol.T, affine)
+    nibobj.header.set_sform(None, code=1)
+    nibobj.header.set_qform(None, code=1)
+    return nibobj
+
+
+def dcmvol2nii_3dslicer(
+        vol: np.ndarray,
+        ipp: Iterable[Union[np.ndarray, NTuple(float, 3)]],
+        iop: Union[Iterable, np.ndarray, NTuple(float, 6)],
+        ps: Union[Iterable, np.ndarray, NTuple(float, 2)],
+        **kwargs,
+        ) -> nib.nifti1.Nifti1Image:
+    r"""
+    """
+    return dcmvol2nii_dcmgrid(vol, ipp, iop, ps, keep_slice_order=False)
+
+
+def dcmvol2nii_niigrid(
+        vol: np.ndarray,
+        ipp: Iterable[Union[np.ndarray, NTuple(float, 3)]],
+        iop: Union[Iterable, np.ndarray, NTuple(float, 6)],
+        ps: Union[Iterable, np.ndarray, NTuple(float, 2)],
+        **kwargs,
+        ):
+    """ obtain from https://gist.github.com/dgobbi/ab71f5128aa43f0d33a41775cb2bcca6 """
+    D,H,W = vol.shape
+    iop = np.array(iop)
+    ps = np.array(ps)
+    if iop.ndim == 1:
+        iop = np.expand_dims(iop, axis=0).repeat(D, axis=0)
+    if ps.ndim == 1:
+        ps = np.expand_dims(ps, axis=0).repeat(D, axis=0)
+    affine, pixdim = create_affine(ipp, iop, ps)
+    vol, affine = convert_coords(vol, affine, inplace=False)
     nibobj = nib.Nifti1Image(vol.T, affine)
     nibobj.header.set_sform(None, code=1)
     nibobj.header.set_qform(None, code=1)
