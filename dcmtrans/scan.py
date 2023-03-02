@@ -1,4 +1,5 @@
 import os
+import logging
 import traceback
 from pathlib import Path
 from types import GeneratorType
@@ -13,8 +14,12 @@ from .reconstruction import reconstruct_series, RecInfo
 InstanceKey = namedtuple('InstanceKey', ['PatientID', 'StudyInstanceUID', 'SeriesInstanceUID'])
 
 
+_logger = logging.getLogger(__name__)
+
+
 def collect_dicoms(
         scanner: Union[Generator, Iterable],
+        verbose: bool = False,
         ) -> Dict[InstanceKey, Dict[str, pydicom.FileDataset]]:
     collections = dict() # {<InstanceKey object>: {<path>: <dcmobj>}}}
     for p in scanner:
@@ -23,11 +28,14 @@ def collect_dicoms(
         try:
             dcmobj = pydicom.dcmread(p)
         except Exception as e:
-            print(f'Cannot read file {p}. {e}')
-            print(traceback.format_exc())
+            if verbose:
+                _logger.debug(f'Cannot read file {p}')
+                _logger.debug(str(e))
+                _logger.debug(traceback.format_exc())
             continue
         if not hasattr(dcmobj, 'SeriesInstanceUID'):
-            print(f'Cannot find attribute "SeriesInstanceUID" from file {p}')
+            if verbose:
+                _logger.debug(f'Cannot find attribute "SeriesInstanceUID" from file {p}')
             continue
         key = InstanceKey(*[str(getattr(dcmobj, tag, '')) for tag in InstanceKey._fields])
         suid = str(dcmobj.SeriesInstanceUID)
@@ -39,17 +47,19 @@ def collect_dicoms(
 
 def collect_dicoms_reconstuct(
         scanner: Union[Generator, Iterable],
+        verbose: bool = False,
         **kwargs,
         ) -> Dict[InstanceKey, RecInfo]:
-    collections = collect_dicoms(scanner)
+    collections = collect_dicoms(scanner, verbose=verbose)
     # reconstruct series
     series_dict = dict()
     for key, dcm_dict in collections.items():
         try:
             rec_info = reconstruct_series(dcm_dict, **kwargs)
         except Exception as e:
-            print(e)
-            print(traceback.format_exc())
+            if verbose:
+                _logger.warn(str(e))
+                _logger.warn(traceback.format_exc())
         else:
             series_dict[key] = rec_info
     return series_dict
