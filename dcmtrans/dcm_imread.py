@@ -41,16 +41,18 @@ def read_pixel_sitk(filename: str):
     itkimg = sitk.ReadImage(filename)
     try:
         RescaleSlope = itkimg.GetMetaData('0028|1053')
+        RescaleSlope = float(str(RescaleSlope).strip())
     except Exception as e:
         logger.warning(e)
         RescaleSlope = 1
     try:
         RescaleIntercept = itkimg.GetMetaData('0028|1052')
+        RescaleIntercept = float(str(RescaleIntercept).strip())
     except Exception as e:
         logger.warning(e)
         RescaleIntercept = 0
     arr = sitk.GetArrayFromImage(itkimg)
-    arr = (arr - RescaleIntercept) / RescaleSlope
+    arr = (arr - float(RescaleIntercept)) / float(RescaleSlope)
     # sitk outputs shape is (?,H,W) while pydicom gives (H,W) for CT images
     # TODO need to test for other modalities
     return arr.squeeze()
