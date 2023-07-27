@@ -34,7 +34,15 @@ def read_pixel_pydicom(dcm: Union[str, pydicom.dataset.FileDataset]):
         data = dcm
     else:
         raise TypeError(f'Invalid argument type. Expect str or pydicom.dataset.FileDataset, given {type(dcm)}')
-    return data.pixel_array
+    img_arr = data.pixel_array
+    if data.PixelRepresentation == 1:
+        # TODO: test
+        bit_shift = data.BitsAllocated - data.BitsStored
+        if bit_shift > 0:
+            dtype = img_arr.dtype
+            img_arr = (img_arr << bit_shift).astype(dtype) >> bit_shift
+    return img_arr
+
 
 
 def read_pixel_sitk(filename: str):
