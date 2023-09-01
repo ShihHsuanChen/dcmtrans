@@ -4,3 +4,4 @@
 *.egg*
 build/*
 dist/*
+git_secret
