@@ -1,5 +1,5 @@
 #!/bin/bash
-PACKAGE_VERSION=v0.2.2
+PACKAGE_VERSION=v0.2.3
 PACKAGE=dcmtrans
 PACKAGE_URL=git+file://$(pwd)@$PACKAGE_VERSION#egg=$PACKAGE
 DIST_DIR=dist
