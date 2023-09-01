@@ -1,11 +1,12 @@
 import os
+import cv2
 from pathlib import Path
-from typing import Dict, Any, Optional, Iterable
+from typing import Dict, Any, Optional, Iterable, List, Tuple, Union
 
 import numpy as np
 
 from .typing import PathLike
-from .dcmtrans import dcmtrans
+from .dcmtrans import dcmtrans, DEPTH, WindowType
 from .dcm_imread import read_pixel
 from .reconstruction import RecInfo
 
@@ -13,15 +14,34 @@ from .reconstruction import RecInfo
 __all__ = ['build_volume_from_recon_info', 'plot_volume']
 
 
-def build_volume_from_recon_info(rec_info: RecInfo[PathLike]) -> np.ndarray:
+def build_volume_from_recon_info(
+        rec_info: RecInfo[PathLike],
+        resize: Union[int, Tuple[int, int], None] = None,
+        resize_interpolation: int = cv2.INTER_LINEAR,
+        depth: int = DEPTH,
+        window: Optional[WindowType] = None, # TODO multiple window?
+        ) -> np.ndarray:
     r"""
     Inputs:
     - rec_info: RecInfo[PathLike] output from dcmtrans.reconstruction.reconstruct_series
         Notice that the value of 
+    - resize: (tuple, optinal) resize to (H,W), if None, not resize
+    - depth: (int) output image bit-depth. example: 256 (2**8)
+    - window: given SINGEL window. [<window str, dict>]
+        <window str>: examples: 'lung', 'abdomen' .etc. see dcmtrans.CT_PRESET_WIINDOW
+        <window dict>: {'window_center': window center, 'window_width': window width}
+                       for example: {'window_center': -750, 'window_width': 700}
 
     Return:
     - volume: (np.ndarray) Shape (D,*,H,W)
     """
+    if resize is not None:
+        if isinstance(resize, int):
+            resize = (resize, resize)
+        if len(resize) != 2:
+            raise ValueError(f'Invalid resize format {resize}')
+        _resize = (resize[1], resize[0])
+
     # read image, transform
     img_list = []
     for idx in rec_info.index_list:
@@ -36,7 +56,10 @@ def build_volume_from_recon_info(rec_info: RecInfo[PathLike]) -> np.ndarray:
             arr = read_pixel(path)
         else:
             arr = dcmobj.pixel_array
-        arrs, e, _info = dcmtrans(dcmobj, arr, window=None)
+        arrs, e, _info = dcmtrans(dcmobj, arr, depth=depth, window=window)
+        # resize
+        if resize is not None:
+            arrs = [cv2.resize(arr, _resize, interpolation=resize_interpolation) for arr in arrs]
         img_list.append(arrs[0])
     volume = np.stack(img_list)
     return volume
