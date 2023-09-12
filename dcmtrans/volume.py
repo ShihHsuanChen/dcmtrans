@@ -41,6 +41,8 @@ def build_volume_from_recon_info(
         if len(resize) != 2:
             raise ValueError(f'Invalid resize format {resize}')
         _resize = (resize[1], resize[0])
+    if window is not None:
+        window = [window] # TODO: multiple window?
 
     # read image, transform
     img_list = []
