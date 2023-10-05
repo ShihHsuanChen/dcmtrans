@@ -19,14 +19,13 @@ def window_linear_trans(
         window_width: float,
         depth: int = 256,
         ) -> np.ndarray:
-    image = image.copy()
+    dtype = image.dtype
+    image = image.astype(np.float64)
     a = image <= (window_center - 0.5 - (window_width - 1) / 2)
     b = image > window_center - 0.5 + (window_width - 1) / 2
-    image[a] = 0
-    image[b] = depth - 1
     c = ((image - (window_center - 0.5)) / (window_width - 1) + 0.5) * (depth - 1)
-    image[~(a | b)] = c[~(a | b)]
-    return image
+    image = np.where(a, 0, np.where(b, depth-1, c))
+    return image.clip(0, depth-1).astype(dtype)
 
 
 def window_linear_exact_trans(
@@ -35,14 +34,13 @@ def window_linear_exact_trans(
         window_width: float,
         depth: int = 256,
         ) -> np.ndarray:
-    image = image.copy()
+    dtype = image.dtype
+    image = image.astype(np.float64)
     a = image <= (window_center - window_width / 2)
     b = image > (window_center + window_width / 2)
-    image[a] = 0
-    image[b] = depth - 1
     c = (image - window_center) / window_width * (depth - 1)
-    image[~(a | b)] = c[~(a | b)]
-    return image
+    image = np.where(a, 0, np.where(b, depth-1, c))
+    return image.clip(0, depth-1).astype(dtype)
 
 
 def window_sigmoid_trans(image: np.ndarray, window_center: float, window_width: float, depth: int = 256) -> np.ndarray:
