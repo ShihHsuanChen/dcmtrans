@@ -2,51 +2,81 @@ import pydicom
 import numpy as np
 from typing import Tuple, Optional
 
-from .trans_method import lut_trans, linear_trans
+from .base import BaseTransManager
+from .trans_method import lut_trans, linear_trans, do_nothing
 
 
-def modality_classifier(dicom_file):
-    """
-    Get modality transform method name from dicom object
+__all__ = [
+    'modality_trans',
+    'modality_classifier',
+    'modality_linear_trans',
+    'modality_lut_trans',
+    'get_modality_trans_func',
+]
 
-    :param dicom_file: object read from pydicom
-    :return: modality transform method name. Includes
-            'LINEAR', 'TABLE', or None
-    """
-    ModalityLUTSequence = getattr(dicom_file, 'ModalityLUTSequence', None)
-    RescaleIntercept = getattr(dicom_file, 'RescaleIntercept', None)
 
-    if (ModalityLUTSequence is not None) and (RescaleIntercept is None):
-        return 'TABLE'
-    elif RescaleIntercept is not None:
-        return 'LINEAR'
+class ModalityTransManager(BaseTransManager):
+    def get_mode(self, dcmObj: pydicom.FileDataset) -> str:
+        """
+        Get modality transform method name from dicom object
+
+        :param dcmObj: object read from pydicom
+        :return: modality transform method name. Includes
+                'LINEAR', 'TABLE', or None
+        """
+        ModalityLUTSequence = getattr(dcmObj, 'ModalityLUTSequence', None)
+        RescaleIntercept = getattr(dcmObj, 'RescaleIntercept', None)
+
+        if (ModalityLUTSequence is not None) and (RescaleIntercept is None):
+            return 'TABLE'
+        elif RescaleIntercept is not None:
+            return 'LINEAR'
+        else:
+            return None
+
+
+trans_manager = ModalityTransManager()
+modality_classifier = trans_manager.get_mode
+get_modality_trans_func = trans_manager.get_func
+
+
+def modality_trans(
+        dcmObj: pydicom.FileDataset,
+        image_data: np.ndarray,
+        ) -> [str, np.ndarray, str]:
+    mode, func = trans_manager.get_func(dcmObj)
+    if func is not None:
+        image_data, unit = func(dcmObj, image_data)
+        return mode, image_data, unit
     else:
-        return None
+        return mode, do_nothing(image_data), None
 
 
+@trans_manager.register('LINEAR')
 def modality_linear_trans(
-        dicom_file: pydicom.FileDataset,
+        dcmObj: pydicom.FileDataset,
         image_data: np.ndarray,
         ) -> Tuple[np.ndarray, Optional[str]]:
-    intercept = getattr(dicom_file, 'RescaleIntercept', None)
-    slope = getattr(dicom_file, 'RescaleSlope', None)
-    unit = getattr(dicom_file, 'RescaleType', None)
-    if unit is None and getattr(dicom_file, 'Modality', '').strip() == 'CT':
+    intercept = getattr(dcmObj, 'RescaleIntercept', None)
+    slope = getattr(dcmObj, 'RescaleSlope', None)
+    unit = getattr(dcmObj, 'RescaleType', None)
+    if unit is None and getattr(dcmObj, 'Modality', '').strip() == 'CT':
         unit = 'HU'
     return linear_trans(image_data, intercept, slope), unit
 
 
+@trans_manager.register('TABLE')
 def modality_lut_trans(
-        dicom_file: pydicom.FileDataset,
+        dcmObj: pydicom.FileDataset,
         image_data: np.ndarray,
         ) -> Tuple[np.ndarray, Optional[str]]:
-    ModalityLUTSequence = dicom_file.get('ModalityLUTSequence')[0]
+    ModalityLUTSequence = dcmObj.get('ModalityLUTSequence')[0]
     lut_descriptor = ModalityLUTSequence.get('LUTDescriptor')
     if lut_descriptor is None: # debug
         lut_descriptor = ModalityLUTSequence.get('LUTDescriptor') # if don't do this line, line 40 will be None
 
     if isinstance(lut_descriptor, bytes):
-        PixelRepresentation = int(dicom_file.get('PixelRepresentation'))
+        PixelRepresentation = int(dcmObj.get('PixelRepresentation'))
         dtype = np.ushort if PixelRepresentation == 0 else np.short
         lut_descriptor = np.frombuffer(lut_descriptor, dtype)
 

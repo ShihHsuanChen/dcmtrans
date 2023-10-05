@@ -3,23 +3,11 @@ import traceback
 import PIL.Image
 import numpy as np
 
-from typing import Union, Callable, Dict, List, Any, Optional
+from typing import Union, Dict, List, Any, Optional
 
-from .trans_method import do_nothing
-
-from .voi_trans import voi_classifier
-from .voi_trans import voi_linear_trans
-from .voi_trans import voi_linear_exact_trans
-from .voi_trans import voi_sigmoid_trans
-from .voi_trans import voi_lut_trans
-
-from .modality_trans import modality_classifier
-from .modality_trans import modality_linear_trans
-from .modality_trans import modality_lut_trans
-
-from .pi_trans import pi_classifier
-from .pi_trans import pi_monochrome1
-from .pi_trans import pi_monochrome2
+from .voi_trans import voi_trans
+from .modality_trans import modality_trans
+from .pi_trans import pi_trans
 
 from .reconstruction import reconstruct_series
 from .reconstruction import get_instance_info
@@ -47,7 +35,8 @@ def dcmtrans(
     :param dcmObj: object read from pydicom
     :param image_data: image array
     :param depth: output image bit-depth. example: 256 (2**8)
-    :param window: given windows. [<window str, dict>]
+    :param window: given windows. [<window str, dict, None>]
+        <window None>: don't apply any window
         <window str>: examples: 'lung', 'abdomen' .etc. see dcmtrans.CT_PRESET_WIINDOW
         <window dict>: {'window_center': window center, 'window_width': window width}
                        for example: {'window_center': -750, 'window_width': 700}
@@ -76,81 +65,6 @@ def dcmtrans(
             image_data_list.append(m_image_data)
 
     return image_data_list, exception_list, {'modality': mod_mode, 'modality_unit': unit, 'voi': voi_mode, 'pi': pi_mode}
-
-
-def get_modality_trans_func(dcmObj: pydicom.FileDataset) -> [str, Union[Callable, None]]:
-    mode = modality_classifier(dcmObj)
-
-    if mode == 'LINEAR':
-        return mode, modality_linear_trans
-    elif mode == 'TABLE':
-        return mode, modality_lut_trans
-    else:
-        return mode, None
-
-
-def modality_trans(
-        dcmObj: pydicom.FileDataset,
-        image_data: np.ndarray,
-        ) -> [str, np.ndarray, str]:
-    mode, func = get_modality_trans_func(dcmObj)
-    if func is not None:
-        image_data, unit = func(dcmObj, image_data)
-        return mode, image_data, unit
-    else:
-        return mode, do_nothing(image_data), None
-
-
-def get_voi_trans_func(dcmObj: pydicom.FileDataset) -> [str, Union[Callable, None]]:
-    mode = voi_classifier(dcmObj)
-
-    if mode == 'LINEAR':
-        return mode, voi_linear_trans
-    elif mode == 'LINEAR_EXACT':
-        return mode, voi_linear_exact_trans
-    elif mode == 'SIGMOID':
-        return mode, voi_sigmoid_trans
-    elif mode == 'TABLE':
-        return mode, voi_lut_trans
-    else:
-        return mode, None
-
-
-def voi_trans(
-        dcmObj: pydicom.FileDataset,
-        image_data: np.ndarray,
-        depth: int,
-        unit: Optional[str] = None,
-        window = 'default',
-        ) -> [str, np.ndarray]:
-    mode, func = get_voi_trans_func(dcmObj)
-    if func is not None:
-        return mode, func(dcmObj, image_data, depth, window=window, unit=unit)
-    else:
-        return mode, do_nothing(image_data)
-
-
-def get_pi_trans_func(dcmObj: pydicom.FileDataset) -> [str, Union[Callable, None]]:
-    mode = pi_classifier(dcmObj)
-
-    if mode == 'MONOCHROME1':
-        return mode, pi_monochrome1
-    elif mode == 'MONOCHROME2':
-        return mode, pi_monochrome2
-    else:
-        return mode, None
-
-
-def pi_trans(
-        dcmObj: pydicom.FileDataset,
-        image_data: np.ndarray,
-        depth: int,
-        ) -> [str, np.ndarray]:
-    mode, func = get_pi_trans_func(dcmObj)
-    if func is not None:
-        return mode, func(dcmObj, image_data, depth)
-    else:
-        return mode, do_nothing(image_data)
 
 
 # TODO
