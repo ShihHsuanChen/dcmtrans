@@ -69,8 +69,18 @@ def voi_trans(
 
 def _get_window(dcmObj: pydicom.FileDataset, window='default', unit=None):
     if isinstance(window, dict):
-        wc = window.get('window_center')
-        ww = window.get('window_width')
+        for key in ['window_level', 'window_center', 'wc', 'wl']:
+            if key in window:
+                wc = window[key]
+                break
+        else:
+            wc = None
+        for key in ['window_width', 'ww']:
+            if key in window:
+                ww = window[key]
+                break
+        else:
+            ww = None
     elif window == 'default' or unit is None:
         try:
             wc = dcmObj.WindowCenter
