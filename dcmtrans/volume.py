@@ -71,6 +71,8 @@ def plot_volume(
         volume: np.ndarray,
         dilute: int = 1,
         ncols: int = 5,
+        idx_min: int = 0,
+        idx_max: Optional[int] = None,
         figwidth: float = 10,
         metadata: Optional[Iterable[Any]] = None,
         **kwargs,
@@ -78,9 +80,13 @@ def plot_volume(
     r"""
     Inputs:
     - volume: (np.ndarray) shape (D,H,W)
-    - dilute: (int) Draw image per `dilute` slices. (default: 1)
+    - dilute: (int) Draw image per `dilute` slices (`dilute` > 1) or 1/`dilute` slices
+                    (`dilute`<1). If one of the idx_min or idx_max is given, dilute between
+                    the range. (default: 1)
     - ncols: (int) Maximum number of subplot columns. If D less than ncols, number of 
                    subplot columns will be D. (default: 5)
+    - idx_min: (int) minimum index to draw (default: 0)
+    - idx_max: (int, optional) maximum index to draw (include)
     - figwidth: (float) figure width (default: 10)
     - metadata: (iterable) text to be shown on each subplots. The length should be equal to D.
 
@@ -89,7 +95,15 @@ def plot_volume(
     import matplotlib.pyplot as plt
 
     kwargs = {'cmap': 'gray', **kwargs}
-    N = int(np.ceil(volume.shape[0]/dilute))
+
+    if idx_max is None:
+        idx_max = volume.shape[0]
+    else:
+        idx_max = min(idx_max+1, volume.shape[0])
+    idx_min = max(idx_min, 0)
+
+    N = int(np.ceil((idx_max-idx_min)/dilute))
+    # N = int(np.ceil(volume.shape[0]/dilute))
     ncols = min(ncols, N)
     nrows = int(np.ceil(N/ncols))
     fig, axs = plt.subplots(nrows, ncols, figsize=(figwidth,figwidth/ncols*nrows))
@@ -98,7 +112,7 @@ def plot_volume(
             k = i*ncols+j
             ax = axs.flat[k] if nrows > 1 or ncols > 1 else axs
             if k < N:
-                _k = k*dilute
+                _k = k*dilute + idx_min
                 if metadata is not None:
                     text = metadata[_k] if _k < len(metadata) else ''
                     text = '\n' + text
