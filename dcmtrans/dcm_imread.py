@@ -4,6 +4,7 @@ import pydicom
 import numpy as np
 import SimpleITK as sitk
 from typing import Union
+from io import BytesIO
 
 
 __all__ = ['read_pixel', 'read_pixel_bytes', 'read_pixel_pydicom', 'read_pixel_sitk']
@@ -12,13 +13,13 @@ __all__ = ['read_pixel', 'read_pixel_bytes', 'read_pixel_pydicom', 'read_pixel_s
 logger = logging.getLogger(__name__)
 
 
-def read_pixel(filename: str, return_on_fail=None):
+def read_pixel(filename: Union[str, BytesIO, pydicom.dataset.FileDataset], return_on_fail=None):
     for method in [read_pixel_pydicom, read_pixel_sitk, read_pixel_bytes]:
         try:
             img_arr = method(filename)
             method_name = method.__qualname__
         except Exception as e:
-            logger.warning(e)
+            logger.warning(str(e))
         else:
             break
     else:
@@ -27,8 +28,11 @@ def read_pixel(filename: str, return_on_fail=None):
     return img_arr
 
 
-def read_pixel_pydicom(dcm: Union[str, pydicom.dataset.FileDataset]):
+def read_pixel_pydicom(dcm: Union[str, BytesIO, pydicom.dataset.FileDataset]):
     if isinstance(dcm, str):
+        data = pydicom.dcmread(dcm, force=True)
+    elif isinstance(dcm, BytesIO):
+        dcm.seek(0)
         data = pydicom.dcmread(dcm, force=True)
     elif isinstance(dcm, pydicom.dataset.FileDataset):
         data = dcm
@@ -44,20 +48,23 @@ def read_pixel_pydicom(dcm: Union[str, pydicom.dataset.FileDataset]):
     return img_arr
 
 
-
-def read_pixel_sitk(filename: str):
-    itkimg = sitk.ReadImage(filename)
+def read_pixel_sitk(dcm: str):
+    try:
+        itkimg = sitk.ReadImage(filename)
+    except Exception as e:
+        logger.warning(str(e))
+        raise TypeError(f'{type(filename)} does not supported by SimpleITK.ReadImage(f)')
     try:
         RescaleSlope = itkimg.GetMetaData('0028|1053')
         RescaleSlope = float(str(RescaleSlope).strip())
     except Exception as e:
-        logger.warning(e)
+        logger.warning(str(e))
         RescaleSlope = 1
     try:
         RescaleIntercept = itkimg.GetMetaData('0028|1052')
         RescaleIntercept = float(str(RescaleIntercept).strip())
     except Exception as e:
-        logger.warning(e)
+        logger.warning(str(e))
         RescaleIntercept = 0
     arr = sitk.GetArrayFromImage(itkimg)
     arr = (arr - float(RescaleIntercept)) / float(RescaleSlope)
@@ -66,8 +73,11 @@ def read_pixel_sitk(filename: str):
     return arr.squeeze()
 
 
-def read_pixel_bytes(dcm: Union[str, pydicom.dataset.FileDataset]):
+def read_pixel_bytes(dcm: Union[str, BytesIO, pydicom.dataset.FileDataset]):
     if isinstance(dcm, str):
+        data = pydicom.dcmread(dcm, force=True)
+    elif isinstance(dcm, BytesIO):
+        dcm.seek(0)
         data = pydicom.dcmread(dcm, force=True)
     elif isinstance(dcm, pydicom.dataset.FileDataset):
         data = dcm
