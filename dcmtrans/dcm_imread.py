@@ -13,10 +13,10 @@ __all__ = ['read_pixel', 'read_pixel_bytes', 'read_pixel_pydicom', 'read_pixel_s
 logger = logging.getLogger(__name__)
 
 
-def read_pixel(filename: Union[str, BytesIO, pydicom.dataset.FileDataset], return_on_fail=None):
+def read_pixel(src: Union[str, BytesIO, pydicom.dataset.FileDataset], return_on_fail=None):
     for method in [read_pixel_pydicom, read_pixel_sitk, read_pixel_bytes]:
         try:
-            img_arr = method(filename)
+            img_arr = method(src)
             method_name = method.__qualname__
         except Exception as e:
             logger.warning(str(e))
@@ -48,7 +48,7 @@ def read_pixel_pydicom(dcm: Union[str, BytesIO, pydicom.dataset.FileDataset]):
     return img_arr
 
 
-def read_pixel_sitk(dcm: str):
+def read_pixel_sitk(filename: str):
     try:
         itkimg = sitk.ReadImage(filename)
     except Exception as e:
