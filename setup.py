@@ -15,6 +15,7 @@ def get_requirements(fns):
 setup(
     name='dcmtrans',
     description='Library for reading various of dicom image(s).',
+    python_requires=">=3.8",
     setuptools_git_versioning={
         'enabled': True,
         'template': '{tag}',
